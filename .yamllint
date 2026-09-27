@@ -11,4 +11,4 @@ rules:
     allowed-values:
       - "true"
       - "false"
-  check-keys: false
+    check-keys: false
