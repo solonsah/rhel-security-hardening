@@ -1,0 +1,49 @@
+---
+# Safe operating mode. Supported values: audit or remediate.
+rhel_hardening_mode: audit
+
+# Remediation requires both values to be explicitly changed.
+rhel_hardening_change_approved: false
+rhel_hardening_rollback_access_confirmed: false
+rhel_hardening_ssh_key_access_confirmed: false
+
+# Supported demonstration platforms.
+rhel_hardening_supported_major_versions:
+  - "8"
+  - "9"
+
+# Local paths on the managed system.
+rhel_hardening_backup_root: /var/backups/rhel-hardening
+rhel_hardening_report_root: /var/tmp/rhel-hardening
+
+# Individual control families.
+rhel_hardening_manage_selinux: false
+rhel_hardening_manage_sshd: false
+rhel_hardening_manage_auditd: false
+rhel_hardening_manage_firewalld: false
+rhel_hardening_manage_password_policy: false
+
+# SELinux target state.
+rhel_hardening_selinux_policy: targeted
+rhel_hardening_selinux_state: enforcing
+
+# SSH baseline. Enabling these settings without validated key-based
+# administrative access can cause a lockout.
+rhel_hardening_sshd_permit_root_login: "no"
+rhel_hardening_sshd_password_authentication: "no"
+rhel_hardening_sshd_x11_forwarding: "no"
+rhel_hardening_sshd_max_auth_tries: 4
+rhel_hardening_sshd_client_alive_interval: 300
+rhel_hardening_sshd_client_alive_count_max: 0
+
+# Password-quality baseline.
+rhel_hardening_password_min_length: 14
+rhel_hardening_password_min_classes: 4
+
+# Firewalld services retained when firewall management is enabled.
+rhel_hardening_firewalld_allowed_services:
+  - ssh
+
+# Audit rules are deployed only when auditd management and remediation
+# are both explicitly enabled.
+rhel_hardening_audit_rules_file: /etc/audit/rules.d/50-rhel-hardening.rules

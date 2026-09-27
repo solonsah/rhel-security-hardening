@@ -1,0 +1,25 @@
+---
+- name: Apply explicitly approved RHEL security controls
+  hosts: rhel_targets
+  gather_facts: true
+  become: true
+  serial: 1
+  any_errors_fatal: true
+
+  vars:
+    rhel_hardening_mode: remediate
+
+    # These safeguards must be deliberately overridden only after approval.
+    rhel_hardening_change_approved: false
+    rhel_hardening_rollback_access_confirmed: false
+    rhel_hardening_ssh_key_access_confirmed: false
+
+    # Enable only reviewed control families.
+    rhel_hardening_manage_selinux: false
+    rhel_hardening_manage_sshd: false
+    rhel_hardening_manage_auditd: false
+    rhel_hardening_manage_firewalld: false
+    rhel_hardening_manage_password_policy: false
+
+  roles:
+    - role: rhel_hardening

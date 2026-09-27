@@ -1,0 +1,54 @@
+---
+- name: Determine whether any remediation family is enabled
+  ansible.builtin.set_fact:
+    rhel_hardening_any_control_enabled: >-
+      {{
+        rhel_hardening_manage_selinux | bool
+        or rhel_hardening_manage_sshd | bool
+        or rhel_hardening_manage_auditd | bool
+        or rhel_hardening_manage_firewalld | bool
+        or rhel_hardening_manage_password_policy | bool
+      }}
+
+- name: Build the remediation backup directory path
+  ansible.builtin.set_fact:
+    rhel_hardening_backup_directory: >-
+      {{
+        rhel_hardening_backup_root
+        ~ "/"
+        ~ ansible_date_time["iso8601_basic_short"]
+      }}
+  when: rhel_hardening_any_control_enabled | bool
+
+- name: Create the protected backup directory
+  ansible.builtin.file:
+    path: "{{ rhel_hardening_backup_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: rhel_hardening_any_control_enabled | bool
+
+- name: Apply SELinux controls
+  ansible.builtin.include_tasks: selinux.yml
+  when: rhel_hardening_manage_selinux | bool
+
+- name: Apply SSH daemon controls
+  ansible.builtin.include_tasks: sshd.yml
+  when: rhel_hardening_manage_sshd | bool
+
+- name: Apply auditd controls
+  ansible.builtin.include_tasks: auditd.yml
+  when: rhel_hardening_manage_auditd | bool
+
+- name: Apply firewalld controls
+  ansible.builtin.include_tasks: firewalld.yml
+  when: rhel_hardening_manage_firewalld | bool
+
+- name: Apply password-quality controls
+  ansible.builtin.include_tasks: password_policy.yml
+  when: rhel_hardening_manage_password_policy | bool
+
+- name: Flush validated service handlers
+  ansible.builtin.meta: flush_handlers
+  when: rhel_hardening_any_control_enabled | bool

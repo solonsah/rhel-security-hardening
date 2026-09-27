@@ -1,0 +1,23 @@
+---
+- name: Run hardening preflight checks
+  ansible.builtin.import_tasks: preflight.yml
+  tags:
+    - always
+    - preflight
+
+- name: Audit current security controls
+  ansible.builtin.import_tasks: audit.yml
+  tags:
+    - audit
+
+- name: Apply explicitly approved remediation
+  ansible.builtin.import_tasks: remediate.yml
+  when: rhel_hardening_mode == "remediate"
+  tags:
+    - remediation
+
+- name: Validate system security and service health
+  ansible.builtin.import_tasks: validate.yml
+  tags:
+    - always
+    - validation

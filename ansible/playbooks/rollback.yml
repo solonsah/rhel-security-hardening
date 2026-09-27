@@ -1,0 +1,140 @@
+---
+- name: Roll back an approved RHEL hardening change
+  hosts: rhel_targets
+  gather_facts: false
+  become: true
+  serial: 1
+  any_errors_fatal: true
+
+  vars:
+    rhel_hardening_rollback_approved: false
+    rhel_hardening_restore_directory: ""
+
+  pre_tasks:
+    - name: Require explicit rollback approval and a protected backup path
+      ansible.builtin.assert:
+        that:
+          - rhel_hardening_rollback_approved | bool
+          - rhel_hardening_restore_directory | length > 0
+          - >-
+            rhel_hardening_restore_directory
+            is match("^/var/backups/rhel-hardening/[0-9T]+$")
+        fail_msg: >-
+          Rollback is blocked until approval is confirmed and a valid
+          timestamped backup directory is supplied.
+
+    - name: Verify the requested backup directory
+      ansible.builtin.stat:
+        path: "{{ rhel_hardening_restore_directory }}"
+      register: rhel_hardening_restore_directory_stat
+
+    - name: Stop when the backup directory is unavailable
+      ansible.builtin.assert:
+        that:
+          - rhel_hardening_restore_directory_stat.stat.exists
+          - rhel_hardening_restore_directory_stat.stat.isdir
+        fail_msg: >-
+          The requested rollback directory does not exist or is not a directory.
+
+  tasks:
+    - name: Inspect available configuration backups
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+      loop:
+        - name: sshd
+          path: "{{ rhel_hardening_restore_directory }}/sshd_config"
+        - name: selinux
+          path: "{{ rhel_hardening_restore_directory }}/selinux-config"
+        - name: password_quality
+          path: "{{ rhel_hardening_restore_directory }}/pwquality.conf"
+        - name: audit_rules
+          path: >-
+            {{ rhel_hardening_restore_directory
+               }}/50-rhel-hardening.rules
+        - name: firewalld
+          path: "{{ rhel_hardening_restore_directory }}/firewalld"
+      register: rhel_hardening_available_backups
+
+    - name: Restore the SSH daemon configuration
+      ansible.builtin.copy:
+        src: "{{ rhel_hardening_restore_directory }}/sshd_config"
+        dest: /etc/ssh/sshd_config
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0600"
+      when: rhel_hardening_available_backups.results[0].stat.exists
+      notify: Validate and reload sshd
+
+    - name: Restore the persistent SELinux configuration
+      ansible.builtin.copy:
+        src: "{{ rhel_hardening_restore_directory }}/selinux-config"
+        dest: /etc/selinux/config
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0644"
+      when: rhel_hardening_available_backups.results[1].stat.exists
+
+    - name: Restore the password-quality configuration
+      ansible.builtin.copy:
+        src: "{{ rhel_hardening_restore_directory }}/pwquality.conf"
+        dest: /etc/security/pwquality.conf
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0644"
+      when: rhel_hardening_available_backups.results[2].stat.exists
+
+    - name: Restore the managed audit-rules file
+      ansible.builtin.copy:
+        src: >-
+          {{ rhel_hardening_restore_directory
+             }}/50-rhel-hardening.rules
+        dest: /etc/audit/rules.d/50-rhel-hardening.rules
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0600"
+      when: rhel_hardening_available_backups.results[3].stat.exists
+      notify: Load audit rules
+
+    - name: Restore the firewalld configuration
+      ansible.builtin.copy:
+        src: "{{ rhel_hardening_restore_directory }}/firewalld/"
+        dest: /etc/firewalld/
+        remote_src: true
+        owner: root
+        group: root
+        mode: preserve
+      when: rhel_hardening_available_backups.results[4].stat.exists
+      notify: Reload firewalld
+
+  handlers:
+    - name: Validate SSH daemon configuration
+      ansible.builtin.command:
+        argv:
+          - sshd
+          - -t
+      changed_when: false
+      listen: Validate and reload sshd
+
+    - name: Reload SSH daemon
+      ansible.builtin.service:
+        name: sshd
+        state: reloaded
+      listen: Validate and reload sshd
+
+    - name: Load persistent audit rules
+      ansible.builtin.command:
+        argv:
+          - augenrules
+          - --load
+      changed_when: true
+      listen: Load audit rules
+
+    - name: Reload firewalld
+      ansible.builtin.service:
+        name: firewalld
+        state: reloaded
+      listen: Reload firewalld

@@ -1,0 +1,36 @@
+---
+- name: Require validated key-based access before SSH hardening
+  ansible.builtin.assert:
+    that:
+      - rhel_hardening_ssh_key_access_confirmed | bool
+    fail_msg: >-
+      SSH remediation is blocked until key-based administrative access and
+      an alternate recovery path have been tested.
+    success_msg: >-
+      Key-based access confirmation is present.
+
+- name: Back up the SSH daemon configuration
+  ansible.builtin.copy:
+    src: /etc/ssh/sshd_config
+    dest: "{{ rhel_hardening_backup_directory }}/sshd_config"
+    remote_src: true
+    owner: root
+    group: root
+    mode: preserve
+
+- name: Apply the managed SSH security block
+  ansible.builtin.blockinfile:
+    path: /etc/ssh/sshd_config
+    insertbefore: BOF
+    marker: "# {mark} ANSIBLE MANAGED RHEL HARDENING"
+    block: |
+      PermitRootLogin {{ rhel_hardening_sshd_permit_root_login }}
+      PasswordAuthentication {{ rhel_hardening_sshd_password_authentication }}
+      X11Forwarding {{ rhel_hardening_sshd_x11_forwarding }}
+      MaxAuthTries {{ rhel_hardening_sshd_max_auth_tries }}
+      ClientAliveInterval {{ rhel_hardening_sshd_client_alive_interval }}
+      ClientAliveCountMax {{ rhel_hardening_sshd_client_alive_count_max }}
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Validate and reload sshd

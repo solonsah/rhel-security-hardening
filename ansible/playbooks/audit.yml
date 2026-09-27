@@ -1,0 +1,11 @@
+---
+- name: Audit RHEL security controls
+  hosts: rhel_targets
+  gather_facts: true
+  become: true
+
+  vars:
+    rhel_hardening_mode: audit
+
+  roles:
+    - role: rhel_hardening

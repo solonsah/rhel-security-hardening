@@ -1,0 +1,62 @@
+---
+- name: Validate the requested SELinux state
+  ansible.builtin.assert:
+    that:
+      - rhel_hardening_selinux_state in ["enforcing", "permissive"]
+      - rhel_hardening_selinux_policy in ["targeted", "minimum", "mls"]
+    fail_msg: >-
+      The requested SELinux state or policy is unsupported by this role.
+
+- name: Back up the SELinux configuration
+  ansible.builtin.copy:
+    src: /etc/selinux/config
+    dest: "{{ rhel_hardening_backup_directory }}/selinux-config"
+    remote_src: true
+    owner: root
+    group: root
+    mode: preserve
+
+- name: Configure the persistent SELinux state
+  ansible.builtin.lineinfile:
+    path: /etc/selinux/config
+    regexp: "^SELINUX="
+    line: "SELINUX={{ rhel_hardening_selinux_state }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Configure the SELinux policy type
+  ansible.builtin.lineinfile:
+    path: /etc/selinux/config
+    regexp: "^SELINUXTYPE="
+    line: "SELINUXTYPE={{ rhel_hardening_selinux_policy }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Read the current runtime SELinux state
+  ansible.builtin.command:
+    argv:
+      - getenforce
+  register: rhel_hardening_current_selinux_state
+  changed_when: false
+
+- name: Set SELinux to enforcing at runtime
+  ansible.builtin.command:
+    argv:
+      - setenforce
+      - Enforcing
+  when:
+    - rhel_hardening_selinux_state == "enforcing"
+    - rhel_hardening_current_selinux_state.stdout != "Enforcing"
+  changed_when: true
+
+- name: Set SELinux to permissive at runtime
+  ansible.builtin.command:
+    argv:
+      - setenforce
+      - Permissive
+  when:
+    - rhel_hardening_selinux_state == "permissive"
+    - rhel_hardening_current_selinux_state.stdout != "Permissive"
+  changed_when: true

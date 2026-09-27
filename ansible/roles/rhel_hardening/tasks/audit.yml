@@ -1,0 +1,109 @@
+---
+- name: Read the current SELinux enforcement state
+  ansible.builtin.command:
+    argv:
+      - getenforce
+  register: rhel_hardening_selinux_audit
+  changed_when: false
+  failed_when: false
+
+- name: Read the effective SSH daemon configuration
+  ansible.builtin.command:
+    argv:
+      - sshd
+      - -T
+  register: rhel_hardening_sshd_audit
+  changed_when: false
+  failed_when: false
+
+- name: Check whether auditd is active
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - is-active
+      - auditd
+  register: rhel_hardening_auditd_active
+  changed_when: false
+  failed_when: false
+
+- name: Check whether auditd is enabled
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - is-enabled
+      - auditd
+  register: rhel_hardening_auditd_enabled
+  changed_when: false
+  failed_when: false
+
+- name: Check whether firewalld is active
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - is-active
+      - firewalld
+  register: rhel_hardening_firewalld_active
+  changed_when: false
+  failed_when: false
+
+- name: Check whether firewalld is enabled
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - is-enabled
+      - firewalld
+  register: rhel_hardening_firewalld_enabled
+  changed_when: false
+  failed_when: false
+
+- name: Read configured password-quality controls
+  ansible.builtin.command:
+    argv:
+      - grep
+      - -E
+      - >-
+        ^[[:space:]]*(minlen|minclass)[[:space:]]*=
+      - /etc/security/pwquality.conf
+  register: rhel_hardening_password_audit
+  changed_when: false
+  failed_when: false
+
+- name: Check the managed audit-rules file
+  ansible.builtin.stat:
+    path: "{{ rhel_hardening_audit_rules_file }}"
+  register: rhel_hardening_audit_rules_stat
+
+- name: Build the sanitized audit summary
+  ansible.builtin.set_fact:
+    rhel_hardening_audit_summary:
+      operating_mode: "{{ rhel_hardening_mode }}"
+      platform: >-
+        RHEL {{ ansible_facts["distribution_major_version"] }}
+      selinux_state: >-
+        {{ rhel_hardening_selinux_audit.stdout | default("unknown", true) }}
+      ssh_controls: >-
+        {{
+          rhel_hardening_sshd_audit.stdout_lines
+          | default([])
+          | select(
+              "match",
+              "^(permitrootlogin|passwordauthentication|x11forwarding|maxauthtries|clientaliveinterval|clientalivecountmax) "
+            )
+          | list
+        }}
+      auditd_active: >-
+        {{ rhel_hardening_auditd_active.stdout | default("unknown", true) }}
+      auditd_enabled: >-
+        {{ rhel_hardening_auditd_enabled.stdout | default("unknown", true) }}
+      firewalld_active: >-
+        {{ rhel_hardening_firewalld_active.stdout | default("unknown", true) }}
+      firewalld_enabled: >-
+        {{ rhel_hardening_firewalld_enabled.stdout | default("unknown", true) }}
+      password_quality_settings: >-
+        {{ rhel_hardening_password_audit.stdout_lines | default([]) }}
+      managed_audit_rules_present: >-
+        {{ rhel_hardening_audit_rules_stat.stat.exists | bool }}
+
+- name: Display the audit summary
+  ansible.builtin.debug:
+    var: rhel_hardening_audit_summary

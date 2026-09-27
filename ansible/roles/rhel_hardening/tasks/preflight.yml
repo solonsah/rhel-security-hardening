@@ -1,0 +1,56 @@
+---
+- name: Validate the selected operating mode
+  ansible.builtin.assert:
+    that:
+      - rhel_hardening_mode in ["audit", "remediate"]
+    fail_msg: >-
+      rhel_hardening_mode must be either audit or remediate.
+    success_msg: >-
+      Operating mode is valid: {{ rhel_hardening_mode }}.
+
+- name: Confirm the target is Red Hat Enterprise Linux
+  ansible.builtin.assert:
+    that:
+      - ansible_facts["distribution"] == "RedHat"
+      - ansible_facts["distribution_major_version"] in
+        rhel_hardening_supported_major_versions
+    fail_msg: >-
+      This role supports only the documented RHEL major versions:
+      {{ rhel_hardening_supported_major_versions | join(", ") }}.
+    success_msg: >-
+      Supported platform detected: RHEL
+      {{ ansible_facts["distribution_major_version"] }}.
+
+- name: Require elevated privileges for remediation
+  ansible.builtin.assert:
+    that:
+      - ansible_facts["effective_user_id"] == 0
+    fail_msg: >-
+      Remediation requires effective root privileges through an approved
+      privilege-escalation method.
+  when: rhel_hardening_mode == "remediate"
+
+- name: Require explicit change and rollback approval
+  ansible.builtin.assert:
+    that:
+      - rhel_hardening_change_approved | bool
+      - rhel_hardening_rollback_access_confirmed | bool
+    fail_msg: >-
+      Remediation is blocked until change approval and rollback access are
+      both explicitly confirmed.
+    success_msg: >-
+      Change approval and rollback access have been confirmed.
+  when: rhel_hardening_mode == "remediate"
+
+- name: Warn when every remediation family is disabled
+  ansible.builtin.debug:
+    msg: >-
+      Remediation mode is selected, but every control family is disabled.
+      No hardening settings will be changed.
+  when:
+    - rhel_hardening_mode == "remediate"
+    - not rhel_hardening_manage_selinux | bool
+    - not rhel_hardening_manage_sshd | bool
+    - not rhel_hardening_manage_auditd | bool
+    - not rhel_hardening_manage_firewalld | bool
+    - not rhel_hardening_manage_password_policy | bool

@@ -1,0 +1,28 @@
+---
+- name: Validate SSH daemon configuration
+  ansible.builtin.command:
+    argv:
+      - sshd
+      - -t
+  changed_when: false
+  listen: Validate and reload sshd
+
+- name: Reload SSH daemon
+  ansible.builtin.service:
+    name: sshd
+    state: reloaded
+  listen: Validate and reload sshd
+
+- name: Load persistent audit rules
+  ansible.builtin.command:
+    argv:
+      - augenrules
+      - --load
+  changed_when: true
+  listen: Load audit rules
+
+- name: Reload firewalld
+  ansible.builtin.service:
+    name: firewalld
+    state: reloaded
+  listen: Reload firewalld

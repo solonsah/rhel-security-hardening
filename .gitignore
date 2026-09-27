@@ -1,0 +1,60 @@
+# Environment and secret files
+.env
+.env.*
+*.secret
+*.secrets
+secrets/
+credentials/
+
+# Ansible Vault password files and protected variables
+.vault_pass
+.vault_pass.*
+**/vault.yml
+**/vault.yaml
+**/secrets.yml
+**/secrets.yaml
+
+# Private inventories and host data
+inventory/private/
+inventory/production/
+inventory/test/
+inventory/development/
+host_vars/
+group_vars/
+
+# SSH keys and certificates
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Ansible runtime and retry files
+.ansible/
+*.retry
+ansible.log
+collections/
+roles/galaxy/
+
+# Generated audit and remediation artifacts
+reports/
+artifacts/
+backups/
+facts/
+*.csv
+*.json
+*.log
+
+# Temporary and editor files
+tmp/
+temp/
+*.bak
+*.backup
+*.swp
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
