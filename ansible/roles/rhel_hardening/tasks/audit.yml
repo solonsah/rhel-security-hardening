@@ -87,7 +87,7 @@
           | default([])
           | select(
               "match",
-              "^(permitrootlogin|passwordauthentication|x11forwarding|maxauthtries|clientaliveinterval|clientalivecountmax) "
+              "^(permitrootlogin|passwordauthentication|x11forwarding|maxauthtries|clientalive.*) "
             )
           | list
         }}
