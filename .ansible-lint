@@ -1,1 +1,13 @@
+---
+profile: moderate
 
+exclude_paths:
+  - sample-output/
+
+skip_list:
+  # Direct firewall-cmd commands use explicit return-code handling
+  # without requiring another Ansible collection.
+  - command-instead-of-module
+
+warn_list:
+  - experimental
